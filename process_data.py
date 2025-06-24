@@ -1,33 +1,30 @@
 import pandas as pd
-import glob
 import os
 
-# Step 1: Read all CSV files from the data/ folder
-data_path = 'data/'
-all_files = glob.glob(os.path.join(data_path, 'daily_sales_data_*.csv'))
+data_dir = "data"
+files = [f for f in os.listdir(data_dir) if f.endswith(".csv")]
 
-# Step 2: List to store DataFrames
-df_list = []
+all_data = []
 
-for file in all_files:
-    df = pd.read_csv(file)
+for file in files:
+    df = pd.read_csv(os.path.join(data_dir, file))
+    df = df[df["product"] == "pink morsel"].copy()
 
-    # Step 3: Filter only "Pink Morsel" product
-    df = df[df['product'] == 'pink morsel']
+    # Use raw string to avoid regex warning
+    df["price"] = df["price"].replace(r'[\$,]', '', regex=True).astype(float)
+    df["quantity"] = pd.to_numeric(df["quantity"], errors="coerce")
 
-    # Step 4: Calculate sales = quantity * price
-    df['sales'] = df['quantity'] * df['price']
+    df["sales"] = df["price"] * df["quantity"]
+    df = df[["date", "region", "sales"]]
+    all_data.append(df)
 
-    # Step 5: Select only relevant columns
-    df = df[['sales', 'date', 'region']]
+final_df = pd.concat(all_data, ignore_index=True)
+final_df["date"] = pd.to_datetime(final_df["date"])
+final_df["sales"] = final_df["sales"].round(2)
 
-    # Step 6: Add to list
-    df_list.append(df)
+# Clean up existing file if needed
+if os.path.exists("processed_sales_data.csv"):
+    os.remove("processed_sales_data.csv")
 
-# Step 7: Concatenate all dataframes
-final_df = pd.concat(df_list, ignore_index=True)
-
-# Step 8: Save to CSV
-final_df.to_csv('processed_sales_data.csv', index=False)
-
-print("✅ Data processed and saved to 'processed_sales_data.csv'")
+final_df.to_csv("processed_sales_data.csv", index=False)
+print("Processed data saved to 'processed_sales_data.csv'")
